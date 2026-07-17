@@ -1,18 +1,73 @@
+# ==========================================
+# VectorForge - .gitignore
+# ==========================================
+
+# --------------------------
 # Compiled binaries
+# --------------------------
 *.exe
 *.o
+*.obj
 *.out
-a.out
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
 
+# --------------------------
+# Debug files
+# --------------------------
+*.pdb
+*.ilk
+*.exp
+
+# --------------------------
 # Build directories
+# --------------------------
 build/
 bin/
+out/
+cmake-build-*/
 
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+Makefile
+
+# --------------------------
+# Generated application data
+# --------------------------
+uploads/*
+data/*
+
+# Keep empty folders
+!uploads/.gitkeep
+!data/.gitkeep
+
+# --------------------------
+# Logs
+# --------------------------
+*.log
+
+# --------------------------
 # IDE files
+# --------------------------
 .vscode/
 .idea/
 *.user
+*.suo
 
-# OS files
+# --------------------------
+# Operating System files
+# --------------------------
 .DS_Store
 Thumbs.db
+
+# --------------------------
+# Temporary files
+# --------------------------
+*.tmp
+*.temp
