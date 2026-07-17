@@ -127,6 +127,66 @@ button {
 .dcard-foot { display: flex; justify-content: space-between; align-items: center; }
 .dcard-words { font-size: 9px; color: var(--muted); }
 
+/* ── FILE UPLOAD ── */
+
+.upload-box{
+    border:1px dashed var(--border);
+    border-radius:8px;
+    padding:18px;
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    align-items:center;
+    text-align:center;
+}
+
+.upload-icon{
+    font-size:34px;
+}
+
+.upload-name{
+    font-size:11px;
+    color:var(--muted);
+    word-break:break-word;
+}
+
+.file-btn{
+    display:inline-block;
+    background:linear-gradient(135deg,var(--accent),#4f46e5);
+    color:white;
+    padding:8px 14px;
+    border-radius:6px;
+    cursor:pointer;
+    font-size:12px;
+    transition:.2s;
+}
+
+.file-btn:hover{
+    transform:translateY(-1px);
+}
+
+input[type=file]{
+    display:none;
+}
+
+.divider{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    color:var(--muted);
+    font-size:10px;
+    letter-spacing:2px;
+}
+
+.divider::before,
+.divider::after{
+    content:"";
+    flex:1;
+    height:1px;
+    background:var(--border);
+}
+
 /* ── OLLAMA STATUS ── */
 .ollama-status { background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; font-size: 11px; line-height: 1.6; }
 .ollama-status.ok { border-color: rgba(166,227,161,.3); }
@@ -276,14 +336,65 @@ button {
         <div class="ollama-status" id="ollamaStatus">Checking…</div>
       </div>
       <div>
-        <div class="sec">Insert Document</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <input type="text" id="docTitle" placeholder="Document title / topic…" />
-          <textarea id="docText" placeholder="Paste your notes, textbook excerpt, lecture content…&#10;&#10;Long text is automatically split into overlapping chunks and each chunk gets its own real embedding via Ollama's nomic-embed-text model."></textarea>
-          <button class="btn-g" id="insertDocBtn" onclick="insertDocument()">⚡ EMBED &amp; INSERT</button>
-          <div id="insertStatus" style="font-size:11px;color:var(--muted)"></div>
+
+    <div class="sec">Upload Document</div>
+
+    <div class="upload-box">
+
+        <div class="upload-icon">📄</div>
+
+        <div class="upload-name" id="selectedFile">
+            No file selected
         </div>
-      </div>
+
+        <label class="file-btn">
+            Choose TXT / PDF
+            <input
+                type="file"
+                id="fileInput"
+                accept=".txt,.pdf"
+                onchange="showSelectedFile()">
+        </label>
+
+        <button
+            class="btn-g"
+            id="uploadBtn"
+            disabled>
+            ⬆ Upload & Index
+        </button>
+
+    </div>
+
+    <div class="divider">
+        OR
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:8px">
+
+        <input
+            type="text"
+            id="docTitle"
+            placeholder="Document title / topic...">
+
+        <textarea
+            id="docText"
+            placeholder="Paste your notes, textbook excerpt, lecture content..."></textarea>
+
+        <button
+            class="btn-g"
+            id="insertDocBtn"
+            onclick="insertDocument()">
+            ⚡ Embed & Insert
+        </button>
+
+        <div
+            id="insertStatus"
+            style="font-size:11px;color:var(--muted)">
+        </div>
+
+    </div>
+
+</div>
       <div>
         <div class="sec">Stored Documents (<span id="docCountLabel">0</span>)</div>
         <div class="doc-list" id="docList">
@@ -845,6 +956,30 @@ async function askAI() {
 function toggleCtx(i) {
   const el=document.getElementById('ctx-'+i);
   el.style.display=el.style.display==='block'?'none':'block';
+}
+
+function showSelectedFile(){
+
+    const input = document.getElementById("fileInput");
+
+    const label = document.getElementById("selectedFile");
+
+    const btn = document.getElementById("uploadBtn");
+
+    if(input.files.length===0){
+
+        label.textContent="No file selected";
+
+        btn.disabled=true;
+
+        return;
+
+    }
+
+    label.textContent=input.files[0].name;
+
+    btn.disabled=false;
+
 }
 
 // ════════════════════════════════════════════════════════════
