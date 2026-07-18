@@ -359,6 +359,7 @@ input[type=file]{
         <button
             class="btn-g"
             id="uploadBtn"
+            onclick="uploadDocument()"
             disabled>
             ⬆ Upload & Index
         </button>
@@ -772,6 +773,66 @@ async function checkOllamaStatus() {
     }
   } catch(_) {}
 }
+
+async function uploadDocument(){
+
+    const input = document.getElementById("fileInput");
+
+    if(input.files.length===0)
+        return;
+
+    const file = input.files[0];
+
+    if(!file.name.toLowerCase().endsWith(".txt")){
+        alert("Only TXT files are supported in Sprint 1.");
+        return;
+    }
+
+    const btn = document.getElementById("uploadBtn");
+
+    btn.disabled = true;
+    btn.textContent = "Reading file...";
+
+    const reader = new FileReader();
+
+    reader.onload = function(e){
+
+        const text = e.target.result;
+
+        const title = file.name.replace(/\.[^/.]+$/, "");
+
+        document.getElementById("docTitle").value = title;
+
+        document.getElementById("docText").value = text;
+
+        btn.textContent = "Embedding...";
+
+        insertDocument();
+
+        input.value = "";
+
+        document.getElementById("selectedFile").textContent =
+            "No file selected";
+
+        btn.textContent = "⬆ Upload & Index";
+
+        btn.disabled = true;
+    };
+
+    reader.onerror = function(){
+
+        alert("Unable to read the file.");
+
+        btn.textContent="⬆ Upload & Index";
+
+        btn.disabled=false;
+
+    };
+
+    reader.readAsText(file);
+
+}
+
 
 async function insertDocument() {
   const title=document.getElementById('docTitle').value.trim();
