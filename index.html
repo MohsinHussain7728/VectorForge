@@ -434,6 +434,15 @@ input[type=file]{
 
 <div id="tip"></div>
 
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+</script>
+
+
 <script>
 // ════════════════════════════════════════════════════════════
 //  CONSTANTS
@@ -818,6 +827,31 @@ async function readTxtFile(file){
 
 }
 
+async function readPdfFile(file){
+
+    const arrayBuffer = await file.arrayBuffer();
+
+    const pdf = await pdfjsLib.getDocument({
+        data: arrayBuffer
+    }).promise;
+
+    let text = "";
+
+    for(let pageNum = 1; pageNum <= pdf.numPages; pageNum++){
+
+        const page = await pdf.getPage(pageNum);
+
+        const content = await page.getTextContent();
+
+        const pageText = content.items
+            .map(item => item.str)
+            .join(" ");
+
+        text += pageText + "\n\n";
+    }
+
+    return text.trim();
+}
 
 async function uploadDocument(){
 
@@ -846,16 +880,18 @@ async function uploadDocument(){
 
         }
 
+        else if(ext === "pdf"){
+
+            text = await readPdfFile(file);
+
+        }
         else{
 
-            alert("Only TXT files are supported in Sprint 1.");
+            alert("Unsupported file type.");
 
-            btn.disabled=false;
-
-            btn.textContent="⬆ Upload & Index";
-
+            btn.disabled = false;
+            btn.textContent = "⬆ Upload & Index";
             return;
-
         }
 
         const title=file.name.replace(/\.[^/.]+$/,"");
