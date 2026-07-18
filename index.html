@@ -774,6 +774,51 @@ async function checkOllamaStatus() {
   } catch(_) {}
 }
 
+async function processDocument(title, text){
+
+    document.getElementById("docTitle").value = title;
+
+    document.getElementById("docText").value = text;
+
+    await insertDocument();
+
+    document.getElementById("fileInput").value = "";
+
+    document.getElementById("selectedFile").textContent =
+        "No file selected";
+
+    const btn = document.getElementById("uploadBtn");
+
+    btn.textContent = "⬆ Upload & Index";
+
+    btn.disabled = true;
+}
+
+async function readTxtFile(file){
+
+    return new Promise((resolve,reject)=>{
+
+        const reader = new FileReader();
+
+        reader.onload = function(e){
+
+            resolve(e.target.result);
+
+        };
+
+        reader.onerror = function(){
+
+            reject("Unable to read file.");
+
+        };
+
+        reader.readAsText(file);
+
+    });
+
+}
+
+
 async function uploadDocument(){
 
     const input = document.getElementById("fileInput");
@@ -783,93 +828,135 @@ async function uploadDocument(){
 
     const file = input.files[0];
 
-    if(!file.name.toLowerCase().endsWith(".txt")){
-        alert("Only TXT files are supported in Sprint 1.");
-        return;
-    }
-
     const btn = document.getElementById("uploadBtn");
 
     btn.disabled = true;
+
     btn.textContent = "Reading file...";
 
-    const reader = new FileReader();
+    const ext = file.name.split('.').pop().toLowerCase();
 
-    reader.onload = function(e){
+    let text = "";
 
-        const text = e.target.result;
+    try{
 
-        const title = file.name.replace(/\.[^/.]+$/, "");
+        if(ext==="txt"){
 
-        document.getElementById("docTitle").value = title;
+            text = await readTxtFile(file);
 
-        document.getElementById("docText").value = text;
+        }
 
-        btn.textContent = "Embedding...";
+        else{
 
-        insertDocument();
+            alert("Only TXT files are supported in Sprint 1.");
 
-        input.value = "";
+            btn.disabled=false;
 
-        document.getElementById("selectedFile").textContent =
-            "No file selected";
+            btn.textContent="⬆ Upload & Index";
 
-        btn.textContent = "⬆ Upload & Index";
+            return;
 
-        btn.disabled = true;
-    };
+        }
 
-    reader.onerror = function(){
+        const title=file.name.replace(/\.[^/.]+$/,"");
 
-        alert("Unable to read the file.");
+        btn.textContent="Embedding...";
 
-        btn.textContent="⬆ Upload & Index";
+        await processDocument(title,text);
+
+    }
+
+    catch(err){
+
+        alert(err);
 
         btn.disabled=false;
 
-    };
+        btn.textContent="⬆ Upload & Index";
 
-    reader.readAsText(file);
+    }
 
 }
 
 
 async function insertDocument() {
-  const title=document.getElementById('docTitle').value.trim();
-  const text=document.getElementById('docText').value.trim();
-  const btn=document.getElementById('insertDocBtn');
-  const status=document.getElementById('insertStatus');
-  if(!title||!text){status.textContent='⚠ Need both a title and text.';return;}
 
-  btn.disabled=true; btn.textContent='Embedding…';
-  status.innerHTML='<span style="color:var(--muted)">Calling Ollama nomic-embed-text…</span>';
+    const title = document.getElementById('docTitle').value.trim();
+    const text = document.getElementById('docText').value.trim();
 
-  try {
-    const r=await fetch(API+'/doc/insert',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({title,text})
-    });
-    const d=await r.json();
-    if (d.error) {
-      status.innerHTML=`<span style="color:var(--red)">✗ ${d.error}</span>`;
-    } else {
-      status.innerHTML=`<span style="color:var(--green)">✓ Inserted ${d.chunks} chunk(s) · ${d.dims}D embeddings</span>`;
-      document.getElementById('docTitle').value='';
-      document.getElementById('docText').value='';
+    const btn = document.getElementById('insertDocBtn');
+    const status = document.getElementById('insertStatus');
 
-          // Insert a 16D fake vector into the visualizer DB so it shows up on the map
-          const emb16 = textToEmbedding(title + ' ' + text);
-          fetch(API+'/insert', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({metadata: title, category: 'doc', embedding: emb16})
-          }).then(() => { loadItems().then(loadHNSW); });
-
-      loadDocList(); checkOllamaStatus();
+    if (!title || !text) {
+        status.textContent = '⚠ Need both a title and text.';
+        return;
     }
-  } catch(_) {
-    status.innerHTML='<span style="color:var(--red)">✗ Server error</span>';
-  }
-  btn.disabled=false; btn.textContent='⚡ EMBED & INSERT';
+
+    btn.disabled = true;
+    btn.textContent = 'Embedding…';
+
+    status.innerHTML =
+        '<span style="color:var(--muted)">Calling Ollama nomic-embed-text…</span>';
+
+    try {
+
+        const r = await fetch(API + '/doc/insert', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                title,
+                text
+            })
+        });
+
+        const d = await r.json();
+
+        if (d.error) {
+
+            status.innerHTML =
+                `<span style="color:var(--red)">✗ ${d.error}</span>`;
+
+        } else {
+
+            status.innerHTML =
+                `<span style="color:var(--green)">✓ Inserted ${d.chunks} chunk(s) · ${d.dims}D embeddings</span>`;
+
+            document.getElementById('docTitle').value = '';
+            document.getElementById('docText').value = '';
+
+            // Insert a fake 16D embedding into the visualizer
+            const emb16 = textToEmbedding(title + ' ' + text);
+
+            await fetch(API + '/insert', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    metadata: title,
+                    category: 'doc',
+                    embedding: emb16
+                })
+            });
+
+            await loadItems();
+            await loadHNSW();
+            await loadDocList();
+            await checkOllamaStatus();
+
+        }
+
+    } catch (_) {
+
+        status.innerHTML =
+            '<span style="color:var(--red)">✗ Server error</span>';
+
+    }
+
+    btn.disabled = false;
+    btn.textContent = '⚡ EMBED & INSERT';
 }
 
 async function loadDocList() {
