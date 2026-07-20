@@ -352,7 +352,7 @@ input[type=file]{
             <input
                 type="file"
                 id="fileInput"
-                accept=".txt,.pdf"
+                accept=".txt,.pdf,.md"
                 onchange="showSelectedFile()">
         </label>
 
@@ -853,6 +853,57 @@ async function readPdfFile(file){
     return text.trim();
 }
 
+async function readMarkdownFile(file){
+
+    let text = await file.text();
+
+    text = text
+
+        // Remove fenced code blocks
+        .replace(/```[\s\S]*?```/g, " ")
+
+        // Remove inline code
+        .replace(/`([^`]*)`/g, "$1")
+
+        // Remove images
+        .replace(/!\[.*?\]\(.*?\)/g, " ")
+
+        // Convert links to visible text
+        .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+
+        // Remove headings
+        .replace(/^#+\s*/gm, "")
+
+        // Remove blockquotes
+        .replace(/^>\s*/gm, "")
+
+        // Remove unordered lists
+        .replace(/^[-*+]\s*/gm, "")
+
+        // Remove ordered lists
+        .replace(/^\d+\.\s*/gm, "")
+
+        // Bold / italic
+        .replace(/\*\*(.*?)\*\*/g, "$1")
+        .replace(/\*(.*?)\*/g, "$1")
+        .replace(/__(.*?)__/g, "$1")
+        .replace(/_(.*?)_/g, "$1");
+
+    return text.trim();
+}
+
+async function readHtmlFile(file){
+
+    const html = await file.text();
+
+    const parser = new DOMParser();
+
+    const doc = parser.parseFromString(html, "text/html");
+
+    return doc.body.innerText.trim();
+
+}
+
 async function uploadDocument(){
 
     const input = document.getElementById("fileInput");
@@ -885,6 +936,19 @@ async function uploadDocument(){
             text = await readPdfFile(file);
 
         }
+
+        else if(ext == "md"){
+
+            text = await readMarkdownFile(file);
+
+        }
+
+        else if(ext == "html" || ext == "htm"){
+
+            text = await readHtmlFile(file);
+
+        }
+
         else{
 
             alert("Unsupported file type.");
