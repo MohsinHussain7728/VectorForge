@@ -1,3 +1,6 @@
+#include "chunker.h"
+#include "ollama_client.h"
+#include "json_utils.h"
 #include "httplib.h"
 #include <iostream>
 #include <vector>
@@ -432,124 +435,13 @@ public:
 //  JSON HELPERS
 // =====================================================================
 
-std::string jS(const std::string& s) {
-    std::string o = "\"";
-    for (char c : s) {
-        if      (c == '"')  o += "\\\"";
-        else if (c == '\\') o += "\\\\";
-        else if (c == '\n') o += "\\n";
-        else if (c == '\r') o += "\\r";
-        else if (c == '\t') o += "\\t";
-        else                o += c;
-    }
-    return o + '"';
-}
 
-std::string jVec(const std::vector<float>& v) {
-    std::ostringstream ss; ss << '[';
-    for (size_t i = 0; i < v.size(); i++) {
-        if (i) ss << ',';
-        ss << std::fixed << std::setprecision(4) << v[i];
-    }
-    return ss.str() + ']';
-}
-
-std::vector<float> parseVec(const std::string& s) {
-    std::vector<float> v;
-    std::istringstream ss(s); std::string t;
-    while (std::getline(ss, t, ','))
-        try { v.push_back(std::stof(t)); } catch (...) {}
-    return v;
-}
-
-// Extract a JSON string field value (handles basic escape sequences)
-std::string extractStr(const std::string& body, const std::string& key) {
-    size_t p = body.find('"' + key + '"');
-    if (p == std::string::npos) return "";
-    p = body.find(':', p) + 1;
-    while (p < body.size() && (body[p] == ' ' || body[p] == '\t')) p++;
-    if (p >= body.size() || body[p] != '"') return "";
-    p++;
-    std::string result;
-    while (p < body.size()) {
-        if (body[p] == '"') break;
-        if (body[p] == '\\' && p + 1 < body.size()) {
-            p++;
-            switch (body[p]) {
-                case '"':  result += '"';  break;
-                case '\\': result += '\\'; break;
-                case 'n':  result += '\n'; break;
-                case 'r':  result += '\r'; break;
-                case 't':  result += '\t'; break;
-                default:   result += body[p]; break;
-            }
-        } else {
-            result += body[p];
-        }
-        p++;
-    }
-    return result;
-}
-
-// Extract a JSON integer field value
-int extractInt(const std::string& body, const std::string& key, int def = 0) {
-    size_t p = body.find('"' + key + '"');
-    if (p == std::string::npos) return def;
-    p = body.find(':', p) + 1;
-    while (p < body.size() && (body[p] == ' ' || body[p] == '\t')) p++;
-    try { return std::stoi(body.substr(p)); } catch (...) { return def; }
-}
-
-bool parseBody(const std::string& b, std::string& meta,
-               std::string& cat, std::vector<float>& emb)
-{
-    meta = extractStr(b, "metadata");
-    cat  = extractStr(b, "category");
-    auto extractArr = [&](const std::string& key) -> std::vector<float> {
-        size_t p = b.find('"' + key + '"');
-        if (p == std::string::npos) return {};
-        p = b.find('[', p);
-        if (p == std::string::npos) return {};
-        size_t e = b.find(']', p);
-        if (e == std::string::npos) return {};
-        return parseVec(b.substr(p + 1, e - p - 1));
-    };
-    emb = extractArr("embedding");
-    return !meta.empty() && !emb.empty();
-}
-
-void cors(httplib::Response& res) {
-    res.set_header("Access-Control-Allow-Origin",  "*");
-    res.set_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-    res.set_header("Access-Control-Allow-Headers", "Content-Type");
-}
 
 // =====================================================================
 //  TEXT CHUNKER
 // =====================================================================
 
-std::vector<std::string> chunkText(const std::string& text,
-                                   int chunkWords = 250, int overlapWords = 30)
-{
-    std::istringstream ss(text);
-    std::vector<std::string> words;
-    std::string w;
-    while (ss >> w) words.push_back(w);
 
-    if (words.empty()) return {};
-    if ((int)words.size() <= chunkWords) return {text};
-
-    std::vector<std::string> chunks;
-    int step = chunkWords - overlapWords;
-    for (int i = 0; i < (int)words.size(); i += step) {
-        int end = std::min(i + chunkWords, (int)words.size());
-        std::string chunk;
-        for (int j = i; j < end; j++) { if (j > i) chunk += ' '; chunk += words[j]; }
-        chunks.push_back(chunk);
-        if (end == (int)words.size()) break;
-    }
-    return chunks;
-}
 
 // =====================================================================
 //  OLLAMA CLIENT  — wraps local Ollama REST API
@@ -558,94 +450,27 @@ std::vector<std::string> chunkText(const std::string& text,
 //            ollama pull llama3.2
 // =====================================================================
 
-class OllamaClient {
-    std::string host;
-    int         port;
 
-    // Escape a string for embedding inside a JSON string literal
-    std::string esc(const std::string& s) {
-        std::string o;
-        for (char c : s) {
-            if      (c == '"')  o += "\\\"";
-            else if (c == '\\') o += "\\\\";
-            else if (c == '\n') o += "\\n";
-            else if (c == '\r') o += "\\r";
-            else if (c == '\t') o += "\\t";
-            else                o += c;
-        }
-        return o;
-    }
-
-    // Parse {"embedding":[...]} from Ollama /api/embeddings response
-    std::vector<float> parseEmbedding(const std::string& body) {
-        size_t p = body.find("\"embedding\"");
-        if (p == std::string::npos) return {};
-        p = body.find('[', p);
-        if (p == std::string::npos) return {};
-        // Find matching ]  — embeddings can be large (768+ floats)
-        size_t e = p + 1, depth = 1;
-        while (e < body.size() && depth > 0) {
-            if (body[e] == '[') depth++;
-            else if (body[e] == ']') depth--;
-            e++;
-        }
-        return parseVec(body.substr(p + 1, e - p - 2));
-    }
-
-    // Parse {"response":"..."} from Ollama /api/generate response
-    std::string parseResponse(const std::string& body) {
-        return extractStr(body, "response");
-    }
-
-public:
-    std::string embedModel = "nomic-embed-text";
-    std::string genModel   = "llama3.2";
-
-    OllamaClient(const std::string& h = "127.0.0.1", int p = 11434)
-        : host(h), port(p) {}
-
-    bool isAvailable() {
-        httplib::Client cli(host, port);
-        cli.set_connection_timeout(2, 0);
-        auto res = cli.Get("/api/tags");
-        return res && res->status == 200;
-    }
-
-    // Returns empty vector if Ollama is not running or model not found
-    std::vector<float> embed(const std::string& text) {
-        httplib::Client cli(host, port);
-        cli.set_connection_timeout(3, 0);
-        cli.set_read_timeout(30, 0);
-        std::string body = "{\"model\":\"" + embedModel + "\",\"prompt\":\"" + esc(text) + "\"}";
-        auto res = cli.Post("/api/embeddings", body, "application/json");
-        if (!res || res->status != 200) return {};
-        return parseEmbedding(res->body);
-    }
-
-    // Returns error string if Ollama is unavailable
-    std::string generate(const std::string& prompt) {
-        httplib::Client cli(host, port);
-        cli.set_connection_timeout(3, 0);
-        cli.set_read_timeout(180, 0);   // LLMs can be slow
-        std::string body = "{\"model\":\"" + genModel + "\","
-                           "\"prompt\":\"" + esc(prompt) + "\","
-                           "\"stream\":false}";
-        auto res = cli.Post("/api/generate", body, "application/json");
-        if (!res || res->status != 200)
-            return "ERROR: Ollama unavailable. Run: ollama serve";
-        return parseResponse(res->body);
-    }
-};
 
 // =====================================================================
 //  DOCUMENT DATABASE  — HNSW over real Ollama embeddings
 // =====================================================================
 
-struct DocItem {
-    int         id;
+struct DocItem{
+
+    int id;
+
     std::string title;
+
     std::string text;
+
     std::vector<float> emb;
+
+    // Metadata
+    std::string sourceType;      // txt, pdf, md, html, ...
+    std::string originalFile;    // Original uploaded filename
+    std::string createdAt;       // ISO-8601 timestamp
+
 };
 
 class DocumentDB {
