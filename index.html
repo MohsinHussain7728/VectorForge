@@ -900,15 +900,33 @@ async function readHtmlFile(file){
 
     const doc = parser.parseFromString(html, "text/html");
 
-    return doc.body.innerText.trim();
+    // Remove elements that don't contain useful content
+    doc.querySelectorAll("script, style, noscript").forEach(el => el.remove());
 
+    const text = doc.body.textContent || "";
+
+    return text.trim();
 }
+
+const documentParsers = {
+
+    txt: readTxtFile,
+
+    pdf: readPdfFile,
+
+    md: readMarkdownFile,
+
+    html: readHtmlFile,
+
+    htm: readHtmlFile
+
+};
 
 async function uploadDocument(){
 
     const input = document.getElementById("fileInput");
 
-    if(input.files.length===0)
+    if(input.files.length === 0)
         return;
 
     const file = input.files[0];
@@ -916,40 +934,15 @@ async function uploadDocument(){
     const btn = document.getElementById("uploadBtn");
 
     btn.disabled = true;
-
     btn.textContent = "Reading file...";
 
     const ext = file.name.split('.').pop().toLowerCase();
 
-    let text = "";
-
     try{
 
-        if(ext==="txt"){
+        const parser = documentParsers[ext];
 
-            text = await readTxtFile(file);
-
-        }
-
-        else if(ext === "pdf"){
-
-            text = await readPdfFile(file);
-
-        }
-
-        else if(ext == "md"){
-
-            text = await readMarkdownFile(file);
-
-        }
-
-        else if(ext == "html" || ext == "htm"){
-
-            text = await readHtmlFile(file);
-
-        }
-
-        else{
+        if(!parser){
 
             alert("Unsupported file type.");
 
@@ -958,11 +951,13 @@ async function uploadDocument(){
             return;
         }
 
-        const title=file.name.replace(/\.[^/.]+$/,"");
+        const text = await parser(file);
 
-        btn.textContent="Embedding...";
+        const title = file.name.replace(/\.[^/.]+$/, "");
 
-        await processDocument(title,text);
+        btn.textContent = "Embedding...";
+
+        await processDocument(title, text);
 
     }
 
@@ -970,9 +965,9 @@ async function uploadDocument(){
 
         alert(err);
 
-        btn.disabled=false;
+        btn.disabled = false;
 
-        btn.textContent="⬆ Upload & Index";
+        btn.textContent = "⬆ Upload & Index";
 
     }
 
