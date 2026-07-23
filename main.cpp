@@ -7,6 +7,8 @@
 #include "bruteforce.h"
 #include "kdtree.h"
 #include "hnsw.h"
+#include "vector_db.h"
+#include "demo_data.h"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -60,111 +62,13 @@ static const int DIMS = 16;   // demo vectors
 //  VECTOR DATABASE  (demo 16D index)
 // =====================================================================
 
-class VectorDB {
-    std::unordered_map<int, VectorItem> store;
-    BruteForce bf;
-    KDTree     kdt;
-    HNSW       hnsw;
-    std::mutex mu;
-    int nextId = 1;
-
-public:
-    const int dims;
-    explicit VectorDB(int d) : kdt(d), hnsw(16, 200), dims(d) {}
-
-    int insert(const std::string& meta, const std::string& cat,
-               const std::vector<float>& emb, DistFn dist)
-    {
-        std::lock_guard<std::mutex> lk(mu);
-        VectorItem v{nextId++, meta, cat, emb};
-        store[v.id] = v;
-        bf.insert(v); kdt.insert(v); hnsw.insert(v, dist);
-        return v.id;
-    }
-
-    bool remove(int id) {
-        std::lock_guard<std::mutex> lk(mu);
-        if (!store.count(id)) return false;
-        store.erase(id); bf.remove(id); hnsw.remove(id);
-        std::vector<VectorItem> rem;
-        for (auto& [i, v] : store) rem.push_back(v);
-        kdt.rebuild(rem);
-        return true;
-    }
-
-    struct Hit { int id; std::string meta, cat; std::vector<float> emb; float dist; };
-    struct SearchOut { std::vector<Hit> hits; long long us; std::string algo, metric; };
-
-    SearchOut search(const std::vector<float>& q, int k,
-                     const std::string& metric, const std::string& algo)
-    {
-        std::lock_guard<std::mutex> lk(mu);
-        auto dfn = getDistFn(metric);
-        auto t0  = std::chrono::high_resolution_clock::now();
-
-        std::vector<std::pair<float,int>> raw;
-        if      (algo == "bruteforce") raw = bf.knn(q, k, dfn);
-        else if (algo == "kdtree")     raw = kdt.knn(q, k, dfn);
-        else                           raw = hnsw.knn(q, k, 50, dfn);
-
-        long long us = std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::high_resolution_clock::now() - t0).count();
-
-        SearchOut out; out.us = us; out.algo = algo; out.metric = metric;
-        for (auto& [d, id] : raw)
-            if (store.count(id))
-                out.hits.push_back({id, store[id].metadata, store[id].category, store[id].emb, d});
-        return out;
-    }
-
-    struct BenchOut { long long bfUs, kdUs, hnswUs; int n; };
-
-    BenchOut benchmark(const std::vector<float>& q, int k, const std::string& metric) {
-        std::lock_guard<std::mutex> lk(mu);
-        auto dfn  = getDistFn(metric);
-        auto time = [&](auto fn) -> long long {
-            auto t = std::chrono::high_resolution_clock::now();
-            fn();
-            return std::chrono::duration_cast<std::chrono::microseconds>(
-                std::chrono::high_resolution_clock::now() - t).count();
-        };
-        return {
-            time([&]{ bf.knn(q, k, dfn); }),
-            time([&]{ kdt.knn(q, k, dfn); }),
-            time([&]{ hnsw.knn(q, k, 50, dfn); }),
-            (int)store.size()
-        };
-    }
-
-    std::vector<VectorItem> all() {
-        std::lock_guard<std::mutex> lk(mu);
-        std::vector<VectorItem> r;
-        for (auto& [id, v] : store) r.push_back(v);
-        return r;
-    }
-
-    HNSW::GraphInfo hnswInfo() {
-        std::lock_guard<std::mutex> lk(mu);
-        return hnsw.getInfo();
-    }
-
-    size_t size() {
-        std::lock_guard<std::mutex> lk(mu);
-        return store.size();
-    }
-};
-
 // =====================================================================
 //  JSON HELPERS
 // =====================================================================
 
-
-
 // =====================================================================
 //  TEXT CHUNKER
 // =====================================================================
-
-
 
 // =====================================================================
 //  OLLAMA CLIENT  — wraps local Ollama REST API
@@ -173,64 +77,13 @@ public:
 //            ollama pull llama3.2
 // =====================================================================
 
-
-
 // =====================================================================
 //  DOCUMENT DATABASE  — HNSW over real Ollama embeddings
 // =====================================================================
 
-
-
-
-
 // =====================================================================
 //  DEMO DATA  (16D categorical vectors)
 // =====================================================================
-
-void loadDemo(VectorDB& db) {
-    auto dist = getDistFn("cosine");
-    // Dims 0-3: CS | Dims 4-7: Math | Dims 8-11: Food | Dims 12-15: Sports
-    db.insert("Linked List: nodes connected by pointers", "cs",
-        {0.90f,0.85f,0.72f,0.68f,0.12f,0.08f,0.15f,0.10f,0.05f,0.08f,0.06f,0.09f,0.07f,0.11f,0.08f,0.06f}, dist);
-    db.insert("Binary Search Tree: O(log n) search and insert", "cs",
-        {0.88f,0.82f,0.78f,0.74f,0.15f,0.10f,0.08f,0.12f,0.06f,0.07f,0.08f,0.05f,0.09f,0.06f,0.07f,0.10f}, dist);
-    db.insert("Dynamic Programming: memoization overlapping subproblems", "cs",
-        {0.82f,0.76f,0.88f,0.80f,0.20f,0.18f,0.12f,0.09f,0.07f,0.06f,0.08f,0.07f,0.08f,0.09f,0.06f,0.07f}, dist);
-    db.insert("Graph BFS and DFS: breadth and depth first traversal", "cs",
-        {0.85f,0.80f,0.75f,0.82f,0.18f,0.14f,0.10f,0.08f,0.06f,0.09f,0.07f,0.06f,0.10f,0.08f,0.09f,0.07f}, dist);
-    db.insert("Hash Table: O(1) lookup with collision chaining", "cs",
-        {0.87f,0.78f,0.70f,0.76f,0.13f,0.11f,0.09f,0.14f,0.08f,0.07f,0.06f,0.08f,0.07f,0.10f,0.08f,0.09f}, dist);
-    db.insert("Calculus: derivatives integrals and limits", "math",
-        {0.12f,0.15f,0.18f,0.10f,0.91f,0.86f,0.78f,0.72f,0.08f,0.06f,0.07f,0.09f,0.07f,0.08f,0.06f,0.10f}, dist);
-    db.insert("Linear Algebra: matrices eigenvalues eigenvectors", "math",
-        {0.20f,0.18f,0.15f,0.12f,0.88f,0.90f,0.82f,0.76f,0.09f,0.07f,0.08f,0.06f,0.10f,0.07f,0.08f,0.09f}, dist);
-    db.insert("Probability: distributions random variables Bayes theorem", "math",
-        {0.15f,0.12f,0.20f,0.18f,0.84f,0.80f,0.88f,0.82f,0.07f,0.08f,0.06f,0.10f,0.09f,0.06f,0.09f,0.08f}, dist);
-    db.insert("Number Theory: primes modular arithmetic RSA cryptography", "math",
-        {0.22f,0.16f,0.14f,0.20f,0.80f,0.85f,0.76f,0.90f,0.08f,0.09f,0.07f,0.06f,0.08f,0.10f,0.07f,0.06f}, dist);
-    db.insert("Combinatorics: permutations combinations generating functions", "math",
-        {0.18f,0.20f,0.16f,0.14f,0.86f,0.78f,0.84f,0.80f,0.06f,0.07f,0.09f,0.08f,0.06f,0.09f,0.10f,0.07f}, dist);
-    db.insert("Neapolitan Pizza: wood-fired dough San Marzano tomatoes", "food",
-        {0.08f,0.06f,0.09f,0.07f,0.07f,0.08f,0.06f,0.09f,0.90f,0.86f,0.78f,0.72f,0.08f,0.06f,0.09f,0.07f}, dist);
-    db.insert("Sushi: vinegared rice raw fish and nori rolls", "food",
-        {0.06f,0.08f,0.07f,0.09f,0.09f,0.06f,0.08f,0.07f,0.86f,0.90f,0.82f,0.76f,0.07f,0.09f,0.06f,0.08f}, dist);
-    db.insert("Ramen: noodle soup with chashu pork and soft-boiled eggs", "food",
-        {0.09f,0.07f,0.06f,0.08f,0.08f,0.09f,0.07f,0.06f,0.82f,0.78f,0.90f,0.84f,0.09f,0.07f,0.08f,0.06f}, dist);
-    db.insert("Tacos: corn tortillas with carnitas salsa and cilantro", "food",
-        {0.07f,0.09f,0.08f,0.06f,0.06f,0.07f,0.09f,0.08f,0.78f,0.82f,0.86f,0.90f,0.06f,0.08f,0.07f,0.09f}, dist);
-    db.insert("Croissant: laminated pastry with buttery flaky layers", "food",
-        {0.06f,0.07f,0.10f,0.09f,0.10f,0.06f,0.07f,0.10f,0.85f,0.80f,0.76f,0.82f,0.09f,0.07f,0.10f,0.06f}, dist);
-    db.insert("Basketball: fast-paced shooting dribbling slam dunks", "sports",
-        {0.09f,0.07f,0.08f,0.10f,0.08f,0.09f,0.07f,0.06f,0.08f,0.07f,0.09f,0.06f,0.91f,0.85f,0.78f,0.72f}, dist);
-    db.insert("Football: tackles touchdowns field goals and strategy", "sports",
-        {0.07f,0.09f,0.06f,0.08f,0.09f,0.07f,0.10f,0.08f,0.07f,0.09f,0.08f,0.07f,0.87f,0.89f,0.82f,0.76f}, dist);
-    db.insert("Tennis: racket volleys groundstrokes and Wimbledon serves", "sports",
-        {0.08f,0.06f,0.09f,0.07f,0.07f,0.08f,0.06f,0.09f,0.09f,0.06f,0.07f,0.08f,0.83f,0.80f,0.88f,0.82f}, dist);
-    db.insert("Chess: openings endgames tactics strategic board game", "sports",
-        {0.25f,0.20f,0.22f,0.18f,0.22f,0.18f,0.20f,0.15f,0.06f,0.08f,0.07f,0.09f,0.80f,0.84f,0.78f,0.90f}, dist);
-    db.insert("Swimming: butterfly freestyle backstroke Olympic competition", "sports",
-        {0.06f,0.08f,0.07f,0.09f,0.08f,0.06f,0.09f,0.07f,0.10f,0.08f,0.06f,0.07f,0.85f,0.82f,0.86f,0.80f}, dist);
-}
 
 // =====================================================================
 //  HTTP SERVER
