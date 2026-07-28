@@ -1,6 +1,12 @@
 #include "vector_db.h"
 
-VectorDB::VectorDB(int d) : kdt(d), hnsw(16, 200), dims(d) {}
+VectorDB::VectorDB(int d, StorageManager* storage)
+    : kdt(d),
+      hnsw(16,200),
+      storage(storage),
+      dims(d)
+{
+}
 
 int VectorDB::insert(const std::string &meta, const std::string &cat,
                      const std::vector<float> &emb, DistFn dist)
@@ -11,6 +17,11 @@ int VectorDB::insert(const std::string &meta, const std::string &cat,
     bf.insert(v);
     kdt.insert(v);
     hnsw.insert(v, dist);
+
+    if(storage)
+    {
+        storage->saveVector(v);
+    }
     return v.id;
 }
 

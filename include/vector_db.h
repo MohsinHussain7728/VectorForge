@@ -11,6 +11,7 @@
 #include "bruteforce.h"
 #include "kdtree.h"
 #include "hnsw.h"
+#include "storage_manager.h"
 
 class VectorDB{
 
@@ -21,13 +22,14 @@ private:
     KDTree kdt;
     HNSW hnsw;
     std::mutex mu;
+    StorageManager* storage;
     int nextId = 1;
 
 public:
 
     const int dims;
 
-    explicit VectorDB(int d);
+    explicit VectorDB(int d, StorageManager* storage);
 
     int insert(const std::string &meta, const std::string &cat,
             const std::vector<float> &emb, DistFn dist);

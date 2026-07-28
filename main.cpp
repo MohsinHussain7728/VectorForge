@@ -12,6 +12,7 @@
 #include "demo_routes.h"
 #include "document_routes.h"
 #include "server_routes.h"
+#include "storage_manager.h"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -93,11 +94,26 @@ static const int DIMS = 16;   // demo vectors
 // =====================================================================
 
 int main() {
-    VectorDB   db(DIMS);
+    // VectorDB   db(DIMS);//changed to->
+    StorageManager storage;
+
+    if (!storage.open("data/vectorforge.db")) {
+        return 1;
+    }
+
+    if (!storage.initializeSchema()) {
+        return 1;
+    }
+
+    VectorDB db(DIMS, &storage);
+
+    //-------------------
+
     DocumentDB docDB;
     OllamaClient ollama;
 
     loadDemo(db);
+
 
     // Check Ollama at startup (non-fatal)
     bool ollamaUp = ollama.isAvailable();
@@ -131,5 +147,8 @@ int main() {
     // ── DOCUMENT + RAG ENDPOINTS ──────────────────────────────────────
 
     svr.listen("0.0.0.0", 8080);
+
+    storage.close();
+
     return 0;
 }
