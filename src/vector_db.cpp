@@ -55,15 +55,26 @@ int VectorDB::insert(const std::string &meta, const std::string &cat,
 bool VectorDB::remove(int id)
 {
     std::lock_guard<std::mutex> lk(mu);
+
     if (!store.count(id))
         return false;
+
     store.erase(id);
     bf.remove(id);
     hnsw.remove(id);
+
     std::vector<VectorItem> rem;
     for (auto &[i, v] : store)
         rem.push_back(v);
+
     kdt.rebuild(rem);
+
+    if (storage)
+    {
+        if (!storage->deleteVector(id))
+            return false;
+    }
+
     return true;
 }
 

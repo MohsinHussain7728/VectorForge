@@ -195,3 +195,30 @@ bool StorageManager::initializeSchema() {
     std::cout << "[StorageManager] Database schema initialized.\n";
     return true;
 }
+
+bool StorageManager::deleteVector(int id)
+{
+    const char* sql =
+        "DELETE FROM vectors WHERE id = ?;";
+
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    {
+        std::cerr << "Failed to prepare DELETE statement.\n";
+        return false;
+    }
+
+    sqlite3_bind_int(stmt, 1, id);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        std::cerr << "Failed to delete vector.\n";
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return true;
+}
