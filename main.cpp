@@ -112,14 +112,14 @@ int main() {
     DocumentDB docDB;
     OllamaClient ollama;
 
-    loadDemo(db);
-
+    
+    db.loadFromStorage(); //temporary change to load from storage instead of demo data.
 
     // Check Ollama at startup (non-fatal)
     bool ollamaUp = ollama.isAvailable();
     std::cout << "=== VectorDB Engine ===" << std::endl;
     std::cout << "http://localhost:8080" << std::endl;
-    std::cout << db.size() << " demo vectors | " << DIMS << " dims | HNSW+KD-Tree+BruteForce" << std::endl;
+    std::cout << db.size() << " vectors | " << DIMS << " dims | HNSW+KD-Tree+BruteForce" << std::endl;
     std::cout << "Ollama: " << (ollamaUp ? "ONLINE" : "OFFLINE (install from ollama.com)") << std::endl;
     if (ollamaUp) std::cout << "  embed model: " << ollama.embedModel
                             << "  gen model: "   << ollama.genModel << std::endl;

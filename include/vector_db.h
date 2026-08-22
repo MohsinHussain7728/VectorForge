@@ -65,6 +65,8 @@ public:
 
     HNSW::GraphInfo hnswInfo();
 
+    void loadFromStorage();
+
     size_t size();
 
     };
