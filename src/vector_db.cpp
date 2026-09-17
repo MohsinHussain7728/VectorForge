@@ -1,6 +1,39 @@
 #include "vector_db.h"
 
-VectorDB::VectorDB(int d) : kdt(d), hnsw(16, 200), dims(d) {}
+VectorDB::VectorDB(int d, StorageManager* storage)
+    : kdt(d),
+      hnsw(16,200),
+      storage(storage),
+      dims(d)
+{
+}
+
+
+void VectorDB::loadFromStorage()
+{
+    std::lock_guard<std::mutex> lk(mu);
+
+    if (!storage)
+        return;
+
+    std::vector<VectorItem> vectors = storage->loadVectors();
+
+    for (const auto& v : vectors)
+    {
+        store[v.id] = v;
+
+        bf.insert(v);
+        kdt.insert(v);
+
+        // Use cosine distance while rebuilding HNSW.
+        hnsw.insert(v, getDistFn("cosine"));
+
+        if (v.id >= nextId)
+            nextId = v.id + 1;
+    }
+}
+
+
 
 int VectorDB::insert(const std::string &meta, const std::string &cat,
                      const std::vector<float> &emb, DistFn dist)
@@ -11,21 +44,37 @@ int VectorDB::insert(const std::string &meta, const std::string &cat,
     bf.insert(v);
     kdt.insert(v);
     hnsw.insert(v, dist);
+
+    if(storage)
+    {
+        storage->saveVector(v);
+    }
     return v.id;
 }
 
 bool VectorDB::remove(int id)
 {
     std::lock_guard<std::mutex> lk(mu);
+
     if (!store.count(id))
         return false;
+
     store.erase(id);
     bf.remove(id);
     hnsw.remove(id);
+
     std::vector<VectorItem> rem;
     for (auto &[i, v] : store)
         rem.push_back(v);
+
     kdt.rebuild(rem);
+
+    if (storage)
+    {
+        if (!storage->deleteVector(id))
+            return false;
+    }
+
     return true;
 }
 

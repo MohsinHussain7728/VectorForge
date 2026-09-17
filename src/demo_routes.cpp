@@ -11,7 +11,7 @@ void registerDemoRoutes(
     VectorDB &db,
     int dims)
 {
-    svr.Get("/search", [&](const httplib::Request &req, httplib::Response &res)
+    svr.Get("/search", [&, dims](const httplib::Request &req, httplib::Response &res)
             {
         cors(res);
         auto q = parseVec(req.get_param_value("v"));
@@ -41,12 +41,16 @@ void registerDemoRoutes(
            << ",\"metric\":"     << jS(out.metric) << '}';
         res.set_content(ss.str(), "application/json"); });
 
-    svr.Post("/insert", [&](const httplib::Request &req, httplib::Response &res)
+    svr.Post("/insert", [&, dims](const httplib::Request &req, httplib::Response &res)
              {
         cors(res);
         std::string meta, cat; std::vector<float> emb;
+        // if (!parseBody(req.body, meta, cat, emb) || (int)emb.size() != dims) {
+        //     res.set_content("{\"error\":\"invalid body\"}", "application/json"); return;
+        // }
         if (!parseBody(req.body, meta, cat, emb) || (int)emb.size() != dims) {
-            res.set_content("{\"error\":\"invalid body\"}", "application/json"); return;
+            res.set_content("{\"error\":\"invalid body\"}", "application/json");
+            return;
         }
         int id = db.insert(meta, cat, emb, getDistFn("cosine"));
         res.set_content("{\"id\":" + std::to_string(id) + "}", "application/json"); });
@@ -75,7 +79,7 @@ void registerDemoRoutes(
         ss << ']';
         res.set_content(ss.str(), "application/json"); });
 
-    svr.Get("/benchmark", [&](const httplib::Request &req, httplib::Response &res)
+    svr.Get("/benchmark", [&, dims](const httplib::Request &req, httplib::Response &res)
             {
         cors(res);
         auto q = parseVec(req.get_param_value("v"));

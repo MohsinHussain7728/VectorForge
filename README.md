@@ -1,73 +1,38 @@
-VectorForge — Build a Vector Database from Scratch in C++
+# VectorForge — Build a Vector Database from Scratch in C++
 
-A fully working modular Vector Database built from scratch in C++ with a web UI, REST API, SQLite persistence, document ingestion, and a RAG pipeline powered by Ollama.
+A fully working **modular Vector Database** built from scratch in C++ with a web UI, REST API, SQLite persistence, document ingestion, and a RAG pipeline powered by Ollama.
 
-Implements HNSW, KD-Tree, and Brute Force search algorithms side-by-side, allowing their performance to be compared using different distance metrics.
+Implements **HNSW**, **KD-Tree**, and **Brute Force** search algorithms side-by-side, allowing their performance to be compared using different distance metrics.
 
-Built as an educational project to understand how modern vector databases work internally — from indexing and similarity search to persistence, embeddings, and Retrieval-Augmented Generation.
+> Built as an educational project to understand how modern vector databases work internally — from indexing and similarity search to persistence, embeddings, and Retrieval-Augmented Generation.
 
-What This Project Does
+---
 
-Feature
+## What This Project Does
 
-Description
+| Feature | Description |
+|---|---|
+| **3 Search Algorithms** | HNSW, KD-Tree, and Brute Force — run all three and compare speed |
+| **3 Distance Metrics** | Cosine similarity, Euclidean distance, Manhattan distance |
+| **16D Demo Vectors** | Semantic demo vectors across CS, Math, Food, and Sports |
+| **2D PCA Scatter Plot** | Live visualization of semantic space |
+| **Real Document Embedding** | Ollama embeds text using `nomic-embed-text` (768D) |
+| **Document Chunking** | Long documents are automatically split into overlapping chunks |
+| **Document Semantic Search** | Search documents using vector similarity |
+| **RAG Pipeline** | Retrieve relevant document chunks and generate answers using `llama3.2` |
+| **SQLite Persistence** | Vector data is persisted locally using SQLite |
+| **Startup Restoration** | Persisted vectors are loaded and indexes are rebuilt on startup |
+| **Persistent Deletion** | Deleted vectors are removed from memory and SQLite |
+| **Full REST API** | Vector CRUD, search, benchmark, HNSW info, documents, RAG, and status |
+| **Web UI** | Search, benchmarking, document ingestion, visualization, and AI question answering |
 
-3 Search Algorithms
+---
 
-HNSW, KD-Tree, and Brute Force — run all three and compare speed
+## Architecture
 
-3 Distance Metrics
+### Overall Architecture
 
-Cosine similarity, Euclidean distance, Manhattan distance
-
-16D Demo Vectors
-
-Semantic demo vectors across CS, Math, Food, and Sports
-
-2D PCA Scatter Plot
-
-Live visualization of semantic space
-
-Real Document Embedding
-
-Ollama embeds text using nomic-embed-text (768D)
-
-Document Chunking
-
-Long documents are automatically split into overlapping chunks
-
-Document Semantic Search
-
-Search documents using vector similarity
-
-RAG Pipeline
-
-Retrieve relevant document chunks and generate answers using llama3.2
-
-SQLite Persistence
-
-Vector data is persisted locally using SQLite
-
-Startup Restoration
-
-Persisted vectors are loaded and indexes are rebuilt on startup
-
-Persistent Deletion
-
-Deleted vectors are removed from memory and SQLite
-
-Full REST API
-
-Vector CRUD, search, benchmark, HNSW info, documents, RAG, and status
-
-Web UI
-
-Search, benchmarking, document ingestion, visualization, and AI question answering
-
-Architecture
-
-Overall Architecture
-
+```text
                          ┌──────────────────┐
                          │      Web UI      │
                          └────────┬─────────┘
@@ -101,9 +66,11 @@ Overall Architecture
                                 │
                                 ▼
                      data/vectorforge.db
+```
 
-Vector Search Pipeline
+### Vector Search Pipeline
 
+```text
 Client / Web UI
       │
       ▼
@@ -120,9 +87,11 @@ Client / Web UI
                      │
                      ▼
               Search Results
+```
 
-Persistent Vector Storage
+### Persistent Vector Storage
 
+```text
 VectorDB
    │
    ▼
@@ -147,9 +116,11 @@ VectorDB
    ├── Brute Force rebuilt
    ├── KD-Tree rebuilt
    └── HNSW rebuilt
+```
 
-Document + RAG Pipeline
+### Document + RAG Pipeline
 
+```text
 Document
    │
    ▼
@@ -180,15 +151,19 @@ llama3.2
    │
    ▼
 Generated Answer
+```
 
-How It Works
+---
 
-Vector Database
+## How It Works
+
+### Vector Database
 
 VectorForge stores vectors together with metadata and category information.
 
 For every vector, the system maintains:
 
+```text
 VectorDB
  │
  ├── In-memory store
@@ -198,9 +173,11 @@ VectorDB
  ├── KD-Tree index
  │
  └── HNSW index
+```
 
 When a vector is inserted:
 
+```text
 Vector
   │
   ├── Store in memory
@@ -212,9 +189,11 @@ Vector
   ├── Insert into HNSW
   │
   └── Save to SQLite
+```
 
 When the application restarts:
 
+```text
 SQLite
    │
    ▼
@@ -227,15 +206,19 @@ VectorDB
    ├── Rebuild Brute Force
    ├── Rebuild KD-Tree
    └── Rebuild HNSW
+```
 
 This allows vector data to survive server restarts.
 
-HNSW
+---
 
-HNSW (Hierarchical Navigable Small World) is an approximate nearest-neighbor search algorithm based on a multilayer graph.
+## HNSW
+
+**HNSW (Hierarchical Navigable Small World)** is an approximate nearest-neighbor search algorithm based on a multilayer graph.
 
 Nodes are organized into multiple layers:
 
+```text
 Layer 2:       A -------- D
                 \        /
 
@@ -243,23 +226,29 @@ Layer 1:     A ---- B ---- D ---- F
                 \    |    /
 
 Layer 0:   A -- B -- C -- D -- E -- F
+```
 
 Search starts from the upper layers and progressively moves toward the closest region.
 
 The current implementation uses:
 
+```text
 M = 16
 efConstruction = 200
 efSearch = 50
+```
 
 HNSW is particularly useful for high-dimensional embeddings such as the 768-dimensional document embeddings used in this project.
 
-KD-Tree
+---
+
+## KD-Tree
 
 KD-Tree is a binary space-partitioning data structure.
 
 Each node splits the vector space using one dimension.
 
+```text
              Root
               │
        ┌──────┴──────┐
@@ -268,22 +257,28 @@ Each node splits the vector space using one dimension.
        │             │
     ┌──┴──┐       ┌──┴──┐
     ...   ...     ...   ...
+```
 
 KD-Trees can work well for lower-dimensional data.
 
-However, their effectiveness decreases as dimensionality increases because of the curse of dimensionality.
+However, their effectiveness decreases as dimensionality increases because of the **curse of dimensionality**.
 
 This project uses:
 
+```text
 Demo vectors       → 16D
 Document embeddings → 768D
+```
 
 This provides a practical comparison between KD-Tree and HNSW across different dimensionalities.
 
-Brute Force Search
+---
+
+## Brute Force Search
 
 Brute Force compares the query vector against every stored vector.
 
+```text
 Query
  │
  ├── Compare with Vector 1
@@ -297,97 +292,116 @@ Query
           │
           ▼
        Top-K results
+```
 
 Approximate complexity:
 
+```text
 O(N × D)
+```
 
 where:
 
-N = number of vectors
-
-D = vector dimensionality
+- `N` = number of vectors
+- `D` = vector dimensionality
 
 Brute Force provides an exact baseline for comparing the other search algorithms.
 
-Prerequisites
+---
+
+# Prerequisites
 
 The following are required on Windows:
 
-MSYS2 — GCC/G++ compiler
+1. **MSYS2** — GCC/G++ compiler
+2. **Git** — repository management
+3. **Ollama** — embedding and LLM runtime
+4. **PowerShell** — included with Windows
+5. **SQLite** — already included in the repository
 
-Git — repository management
-
-Ollama — embedding and LLM runtime
-
-PowerShell — included with Windows
-
-SQLite — already included in the repository
-
-You do not need to install SQLite separately.
+You do **not** need to install SQLite separately.
 
 SQLite is included under:
 
+```text
 third_party/sqlite/
 ├── sqlite3.c
 ├── sqlite3.h
 ├── sqlite3ext.h
 └── shell.c
+```
 
-Step-by-Step Setup — Windows
+---
 
-Step 1 — Install MSYS2
+# Step-by-Step Setup — Windows
+
+## Step 1 — Install MSYS2
 
 MSYS2 provides the GCC/G++ compiler required to build VectorForge.
 
-1. Download MSYS2
+### 1. Download MSYS2
 
 Go to:
 
-https://www.msys2.org
+**https://www.msys2.org**
 
 Download and install MSYS2.
 
 The default installation path is recommended:
 
+```text
 C:\msys64
+```
 
-2. Open MSYS2 UCRT64
+### 2. Open MSYS2 UCRT64
 
 From the Windows Start Menu, open:
 
+```text
 MSYS2 UCRT64
+```
 
-3. Update MSYS2
+### 3. Update MSYS2
 
 Run:
 
+```bash
 pacman -Syu
+```
 
-If MSYS2 asks you to close the terminal, close it and reopen MSYS2 UCRT64.
+If MSYS2 asks you to close the terminal, close it and reopen **MSYS2 UCRT64**.
 
 Run the update again if required:
 
+```bash
 pacman -Syu
+```
 
-4. Install GCC/G++
+### 4. Install GCC/G++
 
 Run:
 
+```bash
 pacman -S mingw-w64-ucrt-x86_64-gcc
+```
 
-5. Add GCC to Windows PATH
+### 5. Add GCC to Windows PATH
 
 Press:
 
+```text
 Win + R
+```
 
 Enter:
 
+```text
 sysdm.cpl
+```
 
 Then:
 
+```text
 Advanced
    ↓
 Environment Variables
@@ -399,126 +413,162 @@ Path
 Edit
    ↓
 New
+```
 
 Add:
 
+```text
 C:\msys64\ucrt64\bin
+```
 
-Click OK on all windows.
+Click **OK** on all windows.
 
-6. Verify Installation
+### 6. Verify Installation
 
-Open a new PowerShell window.
+Open a **new PowerShell** window.
 
 Run:
 
+```powershell
 g++ --version
+```
 
 Also verify:
 
+```powershell
 gcc --version
+```
 
-Step 2 — Install Git
+---
+
+# Step 2 — Install Git
 
 Git is required to clone the VectorForge repository.
 
 Download Git for Windows:
 
-https://git-scm.com/download/win
+**https://git-scm.com/download/win**
 
 Install it using the default settings.
 
 Verify:
 
+```powershell
 git --version
+```
 
 Example:
 
+```text
 git version 2.x.x
+```
 
-Step 3 — Install Ollama
+---
+
+# Step 3 — Install Ollama
 
 Ollama is used for:
 
-Generating document embeddings
-
-Generating RAG answers
+1. Generating document embeddings
+2. Generating RAG answers
 
 Download Ollama for Windows:
 
-https://ollama.com
+**https://ollama.com**
 
 Install Ollama.
 
 After installation, Ollama normally runs in the background.
 
-Step 3.1 — Install the Embedding Model
+---
+
+## Step 3.1 — Install the Embedding Model
 
 Open PowerShell:
 
+```powershell
 ollama pull nomic-embed-text
+```
 
 VectorForge uses this model to convert documents and questions into vectors.
 
 Expected embedding size:
 
+```text
 768 dimensions
+```
 
-Step 3.2 — Install the LLM
+---
+
+## Step 3.2 — Install the LLM
 
 Pull the language model:
 
+```powershell
 ollama pull llama3.2
+```
 
 This model is used by the RAG pipeline to generate answers using retrieved document context.
 
-Step 3.3 — Verify Ollama
+---
+
+## Step 3.3 — Verify Ollama
 
 Run:
 
+```powershell
 ollama list
+```
 
 You should see:
 
+```text
 nomic-embed-text
 llama3.2
+```
 
 If Ollama is not already running, start it with:
 
+```powershell
 ollama serve
+```
 
-Ollama Models Used
+---
 
-Model
+## Ollama Models Used
 
-Purpose
+| Model | Purpose |
+|---|---|
+| `nomic-embed-text` | Converts text into 768D embeddings |
+| `llama3.2` | Generates answers for the RAG pipeline |
 
-nomic-embed-text
+---
 
-Converts text into 768D embeddings
-
-llama3.2
-
-Generates answers for the RAG pipeline
-
-Step 4 — Clone the Repository
+# Step 4 — Clone the Repository
 
 Open PowerShell.
 
 Clone the repository:
 
+```powershell
 git clone https://github.com/YOUR_USERNAME/VectorForge.git
+```
 
 Move into the project:
 
+```powershell
 cd VectorForge
+```
 
-Replace YOUR_USERNAME with your actual GitHub username.
+Replace `YOUR_USERNAME` with your actual GitHub username.
 
-Step 5 — Verify Project Structure
+---
+
+# Step 5 — Verify Project Structure
 
 After cloning, the project should look approximately like:
 
+```text
 VectorForge/
 │
 ├── main.cpp
@@ -571,168 +621,230 @@ VectorForge/
         ├── sqlite3.h
         ├── sqlite3ext.h
         └── shell.c
+```
 
-Step 6 — Compile SQLite
+---
+
+# Step 6 — Compile SQLite
 
 VectorForge uses a vendored copy of SQLite.
 
 From the project root, run:
 
+```powershell
 gcc -c third_party/sqlite/sqlite3.c `
 -Ithird_party/sqlite `
 -o sqlite3.o
+```
 
 This creates:
 
+```text
 sqlite3.o
+```
 
 in the project root.
 
-Step 7 — Compile VectorForge
+---
+
+# Step 7 — Compile VectorForge
 
 Compile the complete C++ project:
 
+```powershell
 g++ -std=c++17 -O2 `
 main.cpp src/*.cpp sqlite3.o `
 -Iinclude -Ithird_party/sqlite `
 -o db.exe -lws2_32
+```
 
-Command Explanation
+### Command Explanation
 
+```text
 -std=c++17
+```
 
 Uses C++17.
 
+```text
 -O2
+```
 
 Enables compiler optimizations.
 
+```text
 main.cpp src/*.cpp
+```
 
 Compiles the modular VectorForge backend.
 
+```text
 sqlite3.o
+```
 
 Links the SQLite implementation.
 
+```text
 -Iinclude
+```
 
 Adds the project header directory.
 
+```text
 -Ithird_party/sqlite
+```
 
 Adds the SQLite header directory.
 
+```text
 -lws2_32
+```
 
 Links Windows Winsock support required by the HTTP server.
 
 After successful compilation:
 
+```text
 db.exe
+```
 
 will be created.
 
-Step 8 — Run VectorForge
+---
+
+# Step 8 — Run VectorForge
 
 You need Ollama and VectorForge running.
 
-Terminal 1 — Start Ollama
+## Terminal 1 — Start Ollama
 
 If Ollama is not already running:
 
+```powershell
 ollama serve
+```
 
 Keep this terminal open.
 
 If Ollama is already running in the Windows system tray, you can skip this step.
 
-Terminal 2 — Start VectorForge
+---
+
+## Terminal 2 — Start VectorForge
 
 Open another PowerShell window.
 
 Go to the project:
 
+```powershell
 cd VectorForge
+```
 
 Run:
 
+```powershell
 .\db.exe
+```
 
 You should see something similar to:
 
+```text
 === VectorDB Engine ===
 http://localhost:8080
 20+ vectors | 16 dims | HNSW+KD-Tree+BruteForce
 Ollama: ONLINE
   embed model: nomic-embed-text  gen model: llama3.2
+```
 
 The exact vector count depends on the contents of your SQLite database.
 
-Step 9 — Open the Web UI
+---
+
+# Step 9 — Open the Web UI
 
 Open your browser:
 
+```text
 http://localhost:8080
+```
 
 The VectorForge web interface should now be available.
 
-Using the Application
+---
 
-Tab 1 — Search
+# Using the Application
+
+## Tab 1 — Search
 
 The Search tab works with the 16-dimensional demo vectors.
 
 Try concepts such as:
 
+```text
 binary tree
 sushi
 basketball
 calculus
+```
 
-Choose Algorithm
+### Choose Algorithm
 
+```text
 HNSW
 KD-Tree
 Brute Force
+```
 
-Choose Distance Metric
+### Choose Distance Metric
 
+```text
 Cosine
 Euclidean
 Manhattan
+```
 
 Click:
 
+```text
 ⚡ SEARCH
+```
 
 to perform the search.
 
 You can also click:
 
+```text
 ▶ COMPARE ALL ALGOS
+```
 
 to compare the latency of all three search algorithms.
 
-PCA Visualization
+---
+
+## PCA Visualization
 
 The scatter plot provides a 2D visualization of the demo vector space.
 
 The demo vectors represent semantic categories such as:
 
+```text
 CS
 Math
 Food
 Sports
+```
 
 The visualization provides an intuitive way to see how vectors occupy different regions of the embedding space.
 
-Tab 2 — Documents
+---
+
+# Tab 2 — Documents
 
 The Documents tab allows you to insert real text and generate embeddings using Ollama.
 
-Workflow
+### Workflow
 
+```text
 Text
  │
  ▼
@@ -749,33 +861,42 @@ DocumentDB
  │
  ├── HNSW
  └── Brute Force
+```
 
-Steps
+### Steps
 
-Enter a document title.
+1. Enter a document title.
 
 Example:
 
+```text
 Operating Systems Notes
+```
 
-Paste your document text.
+2. Paste your document text.
 
-Click:
+3. Click:
 
+```text
 ⚡ EMBED & INSERT
+```
 
-VectorForge splits long documents into overlapping chunks.
+4. VectorForge splits long documents into overlapping chunks.
 
-Each chunk receives its own 768-dimensional embedding.
+5. Each chunk receives its own 768-dimensional embedding.
 
-The chunks are inserted into DocumentDB.
+6. The chunks are inserted into DocumentDB.
 
 Current chunking configuration:
 
+```text
 Chunk size  = 250 words
 Overlap     = 30 words
+```
 
-Tab 3 — Ask AI
+---
+
+# Tab 3 — Ask AI
 
 The Ask AI tab provides the RAG pipeline.
 
@@ -785,16 +906,23 @@ Then enter a question.
 
 Example:
 
+```text
 What is dynamic programming?
+```
 
 Click:
 
+```text
 🤖 ASK AI
+```
 
-RAG Pipeline
+---
+
+## RAG Pipeline
 
 Behind the scenes:
 
+```text
 1. User Question
         │
         ▼
@@ -817,39 +945,51 @@ Behind the scenes:
         │
         ▼
 8. Generated Answer
+```
 
 The retrieved document chunks are provided to the LLM as context.
 
 The UI also displays the retrieved context so you can see which document chunks were used.
 
-SQLite Persistence
+---
+
+# SQLite Persistence
 
 One of the major features added in Sprint 2 is persistent storage.
 
 VectorForge stores vector data in:
 
+```text
 data/vectorforge.db
+```
 
 The database stores information such as:
 
+```text
 ID
 Metadata
 Category
 Embedding
+```
 
 The SQLite schema is:
 
+```sql
 CREATE TABLE vectors (
     id INTEGER PRIMARY KEY,
     metadata TEXT,
     category TEXT,
     embedding TEXT
 );
+```
 
-Vector Insert Persistence
+---
+
+## Vector Insert Persistence
 
 When a vector is inserted:
 
+```text
 POST /insert
       │
       ▼
@@ -865,11 +1005,15 @@ StorageManager
       │
       ▼
 SQLite
+```
 
-Startup Restoration
+---
+
+## Startup Restoration
 
 When VectorForge starts:
 
+```text
 Application Start
        │
        ▼
@@ -887,30 +1031,40 @@ VectorDB
        ├── Brute Force rebuilt
        ├── KD-Tree rebuilt
        └── HNSW rebuilt
+```
 
 The next available vector ID is also restored.
 
 For example:
 
+```text
 Before restart:
 1
 2
 3
 ...
 21
+```
 
 After restart:
 
+```text
 nextId = 22
+```
 
 The next inserted vector receives:
 
+```text
 ID = 22
+```
 
-Persistent Delete
+---
+
+## Persistent Delete
 
 Deleting a vector removes it from:
 
+```text
 VectorDB memory
      │
      ├── Brute Force
@@ -918,153 +1072,98 @@ VectorDB memory
      └── HNSW
 
 SQLite
+```
 
 This keeps the persistent database and in-memory indexes synchronized.
 
-REST API Reference
+---
+
+# REST API Reference
 
 The server exposes a REST API at:
 
+```text
 http://localhost:8080
+```
 
-Demo Vector Endpoints
+## Demo Vector Endpoints
 
-Method
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/search?v=f1,f2,...&k=5&metric=cosine&algo=hnsw` | K-NN vector search |
+| `POST` | `/insert` | Insert a vector |
+| `DELETE` | `/delete/:id` | Delete a vector by ID |
+| `GET` | `/items` | List all vectors |
+| `GET` | `/benchmark?v=...&k=5&metric=cosine` | Compare all three algorithms |
+| `GET` | `/hnsw-info` | HNSW graph structure and layer statistics |
+| `GET` | `/stats` | Database statistics |
 
-Endpoint
+---
 
-Description
+## Document & RAG Endpoints
 
-GET
+| Method | Endpoint | Body | Description |
+|---|---|---|---|
+| `POST` | `/doc/insert` | `{"title":"...","text":"..."}` | Embed and store document |
+| `GET` | `/doc/list` | — | List stored document chunks |
+| `DELETE` | `/doc/delete/:id` | — | Delete document chunk |
+| `POST` | `/doc/search` | `{"question":"...","k":3}` | Semantic document search |
+| `POST` | `/doc/ask` | `{"question":"...","k":3}` | RAG: retrieve + generate |
+| `GET` | `/status` | — | Ollama status and model information |
 
-/search?v=f1,f2,...&k=5&metric=cosine&algo=hnsw
+---
 
-K-NN vector search
+# Example API Requests
 
-POST
+## Search via curl
 
-/insert
-
-Insert a vector
-
-DELETE
-
-/delete/:id
-
-Delete a vector by ID
-
-GET
-
-/items
-
-List all vectors
-
-GET
-
-/benchmark?v=...&k=5&metric=cosine
-
-Compare all three algorithms
-
-GET
-
-/hnsw-info
-
-HNSW graph structure and layer statistics
-
-GET
-
-/stats
-
-Database statistics
-
-Document & RAG Endpoints
-
-Method
-
-Endpoint
-
-Body
-
-Description
-
-POST
-
-/doc/insert
-
-{"title":"...","text":"..."}
-
-Embed and store document
-
-GET
-
-/doc/list
-
-—
-
-List stored document chunks
-
-DELETE
-
-/doc/delete/:id
-
-—
-
-Delete document chunk
-
-POST
-
-/doc/search
-
-{"question":"...","k":3}
-
-Semantic document search
-
-POST
-
-/doc/ask
-
-{"question":"...","k":3}
-
-RAG: retrieve + generate
-
-GET
-
-/status
-
-—
-
-Ollama status and model information
-
-Example API Requests
-
-Search via curl
-
+```powershell
 curl.exe "http://localhost:8080/search?v=0.9,0.8,0.7,0.6,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1&k=3&metric=cosine&algo=hnsw"
+```
 
-Insert a Vector
+---
 
+## Insert a Vector
+
+```powershell
 curl.exe -X POST http://localhost:8080/insert `
   -H "Content-Type: application/json" `
   -d '{"metadata":"Test vector","category":"cs","embedding":[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.1,0.2,0.3,0.4,0.5,0.6,0.7]}'
+```
 
-Delete a Vector
+---
 
+## Delete a Vector
+
+```powershell
 curl.exe -X DELETE http://localhost:8080/delete/21
+```
 
-Insert a Document
+---
 
+## Insert a Document
+
+```powershell
 curl.exe -X POST http://localhost:8080/doc/insert `
   -H "Content-Type: application/json" `
   -d '{"title":"Operating Systems","text":"Operating systems manage hardware resources and provide services to applications."}'
+```
 
-Ask a Question
+---
 
+## Ask a Question
+
+```powershell
 curl.exe -X POST http://localhost:8080/doc/ask `
   -H "Content-Type: application/json" `
   -d '{"question":"What is an operating system?","k":3}'
+```
 
-Project Structure
+---
 
+# Project Structure
+
+```text
 VectorForge/
 │
 ├── main.cpp
@@ -1117,214 +1216,219 @@ VectorForge/
         ├── sqlite3.h
         ├── sqlite3ext.h
         └── shell.c
+```
 
-Core Components
+---
 
-Component
+# Core Components
 
-Responsibility
+| Component | Responsibility |
+|---|---|
+| **VectorDB** | Main vector database and index coordination |
+| **BruteForce** | Exact nearest-neighbor search |
+| **KDTree** | Exact spatial search for lower-dimensional vectors |
+| **HNSW** | Approximate nearest-neighbor graph search |
+| **StorageManager** | SQLite connection, schema, persistence, loading, and deletion |
+| **DocumentDB** | Stores document chunks and performs semantic retrieval |
+| **OllamaClient** | Communicates with Ollama for embeddings and generation |
+| **Document Routes** | Document ingestion, search, deletion, and RAG |
+| **Server Routes** | Vector search, insert, delete, benchmark, statistics, and HNSW APIs |
+| **Chunker** | Splits documents into overlapping text chunks |
+| **Web UI** | Search, visualization, benchmarking, documents, and RAG interface |
 
-VectorDB
+---
 
-Main vector database and index coordination
+# Algorithm Comparison
 
-BruteForce
+| Algorithm | Type | Main Characteristics |
+|---|---|---|
+| **Brute Force** | Exact | Simple baseline and exact results |
+| **KD-Tree** | Exact | Spatial partitioning, useful for lower-dimensional data |
+| **HNSW** | Approximate | Graph-based search, useful for high-dimensional embeddings |
 
-Exact nearest-neighbor search
+### Brute Force
 
-KDTree
-
-Exact spatial search for lower-dimensional vectors
-
-HNSW
-
-Approximate nearest-neighbor graph search
-
-StorageManager
-
-SQLite connection, schema, persistence, loading, and deletion
-
-DocumentDB
-
-Stores document chunks and performs semantic retrieval
-
-OllamaClient
-
-Communicates with Ollama for embeddings and generation
-
-Document Routes
-
-Document ingestion, search, deletion, and RAG
-
-Server Routes
-
-Vector search, insert, delete, benchmark, statistics, and HNSW APIs
-
-Chunker
-
-Splits documents into overlapping text chunks
-
-Web UI
-
-Search, visualization, benchmarking, documents, and RAG interface
-
-Algorithm Comparison
-
-Algorithm
-
-Type
-
-Main Characteristics
-
-Brute Force
-
-Exact
-
-Simple baseline and exact results
-
-KD-Tree
-
-Exact
-
-Spatial partitioning, useful for lower-dimensional data
-
-HNSW
-
-Approximate
-
-Graph-based search, useful for high-dimensional embeddings
-
-Brute Force
-
+```text
 Complexity ≈ O(N × D)
+```
 
 Every vector is compared with the query.
 
-KD-Tree
+### KD-Tree
 
 Uses recursive space partitioning and pruning.
 
-HNSW
+### HNSW
 
 Uses a multilayer graph to navigate through the vector space.
 
-Distance Metrics
+---
+
+# Distance Metrics
 
 VectorForge supports three distance functions.
 
-Cosine Distance
+## Cosine Distance
 
 Measures the angular difference between vectors.
 
 Useful for:
 
+```text
 Text embeddings
 Semantic similarity
 Document retrieval
 RAG
+```
 
-Euclidean Distance
+---
+
+## Euclidean Distance
 
 Measures straight-line distance.
 
+```text
 d(x,y) = √Σ(xᵢ-yᵢ)²
+```
 
-Manhattan Distance
+---
+
+## Manhattan Distance
 
 Measures the sum of absolute coordinate differences.
 
+```text
 d(x,y) = Σ|xᵢ-yᵢ|
+```
 
-Common Issues
+---
 
-Problem
+# Common Issues
 
-Solution
+| Problem | Solution |
+|---|---|
+| `g++: command not found` | Add `C:\msys64\ucrt64\bin` to Windows PATH |
+| `gcc: command not found` | Add the MSYS2 UCRT64 bin directory to PATH |
+| SQLite linker errors | Recompile `sqlite3.o` |
+| `undefined reference to WSA...` | Make sure `-lws2_32` is included |
+| `Ollama: OFFLINE` | Start Ollama with `ollama serve` |
+| Embedding takes a long time | Ollama may be downloading/loading the model |
+| Model not found | Run `ollama list` and `ollama pull <model>` |
+| Browser cannot connect | Make sure `db.exe` is running |
+| Port 8080 already in use | Find and terminate the process using port 8080 |
+| RAG response is slow | Local LLM inference depends on available CPU/GPU resources |
+| Vector data disappears after restart | Check that `data/vectorforge.db` exists and SQLite was included during compilation |
 
-g++: command not found
+---
 
-Add C:\msys64\ucrt64\bin to Windows PATH
-
-gcc: command not found
-
-Add the MSYS2 UCRT64 bin directory to PATH
-
-SQLite linker errors
-
-Recompile sqlite3.o
-
-undefined reference to WSA...
-
-Make sure -lws2_32 is included
-
-Ollama: OFFLINE
-
-Start Ollama with ollama serve
-
-Embedding takes a long time
-
-Ollama may be downloading/loading the model
-
-Model not found
-
-Run ollama list and ollama pull <model>
-
-Browser cannot connect
-
-Make sure db.exe is running
-
-Port 8080 already in use
-
-Find and terminate the process using port 8080
-
-RAG response is slow
-
-Local LLM inference depends on available CPU/GPU resources
-
-Vector data disappears after restart
-
-Check that data/vectorforge.db exists and SQLite was included during compilation
-
-Port 8080 Already in Use
+# Port 8080 Already in Use
 
 Check which process is using port 8080:
 
+```powershell
 netstat -ano | findstr :8080
+```
 
 You may see:
 
+```text
 TCP    0.0.0.0:8080    0.0.0.0:0    LISTENING    12345
+```
 
 Terminate the process:
 
+```powershell
 taskkill /PID 12345 /F
+```
 
-Replace 12345 with the actual PID.
+Replace `12345` with the actual PID.
 
-Using a Smaller LLM
+---
 
-If llama3.2 is too slow, you can use a smaller model.
+# Using a Smaller LLM
+
+If `llama3.2` is too slow, you can use a smaller model.
 
 Pull:
 
+```powershell
 ollama pull llama3.2:1b
+```
 
 Then update the generation model in:
 
+```text
 include/ollama_client.h
+```
 
 Change:
 
+```cpp
 std::string genModel = "llama3.2";
+```
 
 to:
 
+```cpp
 std::string genModel = "llama3.2:1b";
+```
 
 Recompile:
 
+```powershell
 g++ -std=c++17 -O2 main.cpp src/*.cpp sqlite3.o `
 -Iinclude -Ithird_party/sqlite `
 -o db.exe -lws2_32
+```
 
 Then restart VectorForge.
+
+---
+
+# Learning Goals
+
+This project demonstrates the concepts behind modern vector search systems.
+
+```text
+Data Structures
+      │
+      ├── KD-Tree
+      ├── Graphs
+      └── Priority Queues
+
+Algorithms
+      │
+      ├── Nearest Neighbor Search
+      ├── HNSW
+      └── Vector Similarity
+
+Systems Programming
+      │
+      ├── C++
+      ├── Multithreading
+      └── HTTP Server
+
+Database Systems
+      │
+      ├── SQLite
+      ├── Persistence
+      └── Data Restoration
+
+Machine Learning
+      │
+      ├── Embeddings
+      ├── Semantic Search
+      └── RAG
+
+AI Systems
+      │
+      ├── Ollama
+      ├── LLM Inference
+      └── Retrieval-Augmented Generation
+```
+
+---
+
+# License
+
+MIT — use this project for learning, experimentation, and development.
